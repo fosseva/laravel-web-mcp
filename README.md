@@ -4,6 +4,25 @@ Make your Laravel AI SDK tools available to browser agents through Blade. The sa
 
 You choose which tools each page exposes. Browser calls use Laravel sessions, authorization, and CSRF protection.
 
+## Why WebMCP?
+
+Browser agents commonly interact with websites by inspecting screenshots, the DOM, or accessibility information, then clicking controls, filling forms, and reading the resulting page. This works on existing websites, but requires the agent to infer how the interface maps to the user's task.
+
+[WebMCP](https://webmachinelearning.github.io/webmcp/#modelcontexttool-dictionary) lets a website expose named tools with descriptions and structured input schemas. An agent can discover an operation and call it with explicit arguments.
+
+For example, searching for a product through the UI can involve finding the search field, typing a query, submitting the form, waiting for results, and extracting product details. With this package, the page can expose `search_products`, which the agent calls with `{"query": "keyboard"}` to receive the handler's result.
+
+| Aspect | Advantage of WebMCP | Disadvantage or limitation |
+| --- | --- | --- |
+| Discovering actions | Explicit names, descriptions, and input schemas reduce the need to infer actions from page controls. | Developers must define and maintain clear tool contracts; agents can still choose the wrong tool or arguments. |
+| Executing a task | Direct calls can reduce clicks, page waits, latency, and model work. | Performance gains depend on the implementation; unexposed actions and visual tasks still need UI navigation. |
+| UI changes | Tools can remain stable when layouts, labels, or selectors change. | Changes to tool names, schemas, or behavior can still break agent workflows. |
+| Reading results | Agents receive handler results directly, including JSON when provided. | Useful output must be designed by the developer; tool calls do not automatically verify the rendered UI. |
+| Laravel integration | This package reuses AI SDK handlers and Laravel sessions, authorization, and CSRF protection. | Handlers must validate inputs and enforce permissions; annotations do not enforce safety or approval. |
+| Compatibility | A standard browser interface lets supporting agents discover page tools. | A compatible browser and agent are required, and the [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd). |
+
+WebMCP complements UI navigation. Expose tools for operations with clear inputs and results, and retain ordinary page controls for users and agents that need them.
+
 Requires PHP 8.3+, Laravel 12.62+ or 13.15+, and `laravel/ai` 1.1+.
 
 ## Install
@@ -82,6 +101,57 @@ Keep tenant filtering and resource authorization in the handler as well.
 Override `webMcpName()` to choose a custom name. Names must be unique on the page and contain 1–128 letters, digits, underscores, dots, or hyphens.
 
 Use `description()` for the tool's description. Use `webMcpAnnotations()` for boolean behavior hints, such as `readOnlyHint`. Annotations do not grant permissions.
+
+### Tool annotation examples
+
+The [current WebMCP draft](https://webmachinelearning.github.io/webmcp/#modelcontexttool-dictionary) defines these boolean annotations. Each defaults to `false` when omitted; browser support may vary.
+
+| Annotation | Meaning when `true` | Example tool |
+| --- | --- | --- |
+| `readOnlyHint` | Reads data without changing state. | Search products. |
+| `untrustedContentHint` | Returns content the tool author does not trust. | Read customer reviews. |
+| `consequentialHint` | Performs a significant real-world or irreversible action. | Place an order or transfer money. |
+| `debugging` | Intended for debugging or developer tooling. | Inspect application diagnostics. |
+
+Override `webMcpAnnotations()` on the relevant tool. Hints can be combined when both apply.
+
+A `ReadProductReviews` tool can read data while returning untrusted customer-written content:
+
+```php
+public function webMcpAnnotations(): array
+{
+    return [
+        'readOnlyHint' => true,
+        'untrustedContentHint' => true,
+    ];
+}
+```
+
+A `PlaceOrder` tool changes state and commits a purchase:
+
+```php
+public function webMcpAnnotations(): array
+{
+    return [
+        'readOnlyHint' => false,
+        'consequentialHint' => true,
+    ];
+}
+```
+
+An `InspectDiagnostics` tool intended for developers can identify itself as a debugging tool:
+
+```php
+public function webMcpAnnotations(): array
+{
+    return [
+        'readOnlyHint' => true,
+        'debugging' => true,
+    ];
+}
+```
+
+The package passes annotations to the browser unchanged. They do not enforce read-only execution, sanitize output, request approval, or restrict debugging tools to developers. Keep those checks in your authorization policy and handler. `consequentialHint` does not enable the SDK approval workflow described under [SDK boundaries](#sdk-boundaries).
 
 ## Expose tools in Blade
 
