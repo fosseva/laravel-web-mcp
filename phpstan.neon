@@ -1,0 +1,10 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    parallel:
+        maximumNumberOfProcesses: 1
+    paths:
+        - src
+        - tests/Fixtures
+    level: 8

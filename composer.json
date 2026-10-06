@@ -1,0 +1,77 @@
+{
+    "name": "fosseva/laravel-web-mcp",
+    "description": "Expose Laravel AI SDK tools in Blade through browser-native WebMCP.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "webmcp",
+        "ai",
+        "agents"
+    ],
+    "require": {
+        "php": "^8.3",
+        "illuminate/contracts": "^12.0|^13.0",
+        "illuminate/encryption": "^12.0|^13.0",
+        "illuminate/http": "^12.0|^13.0",
+        "illuminate/json-schema": "^12.62|^13.15",
+        "illuminate/routing": "^12.0|^13.0",
+        "illuminate/support": "^12.0|^13.0",
+        "illuminate/validation": "^12.0|^13.0",
+        "laravel/ai": "^1.1"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.18",
+        "orchestra/testbench": "^10.0|^11.0",
+        "pestphp/pest": "^3.8|^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Fosseva\\WebMcp\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Fosseva\\WebMcp\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Fosseva\\WebMcp\\WebMcpServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "lint": [
+            "pint"
+        ],
+        "lint:check": [
+            "pint --test"
+        ],
+        "types:check": [
+            "phpstan analyse --no-progress --debug"
+        ],
+        "test": [
+            "@lint:check",
+            "@types:check",
+            "@php vendor/bin/pest",
+            "@test:runtime"
+        ],
+        "ci:check": [
+            "@test"
+        ],
+        "test:runtime": [
+            "node --test tests/runtime.test.cjs"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
