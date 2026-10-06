@@ -1,9 +1,13 @@
 # Laravel WebMCP
 
+[![Status](https://img.shields.io/badge/Status-Alpha%20%2F%20under%20development-F59E0B)](CHANGELOG.md)
 [![CI](https://github.com/fosseva/laravel-web-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/fosseva/laravel-web-mcp/actions/workflows/ci.yml)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](composer.json)
 [![Laravel](https://img.shields.io/badge/Laravel-12.62%2B%20%7C%2013.15%2B-FF2D20?logo=laravel&logoColor=white)](composer.json)
 [![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
+
+> [!WARNING]
+> **Early preview: `v0.1.0-alpha.1`.** This package is under active development and is not a stable release. APIs, configuration, and browser behavior may change between prereleases. Use it for experimentation and feedback; evaluate it carefully before relying on it in production. WebMCP itself is also an evolving browser API.
 
 Make your Laravel AI SDK tools available to browser agents through Blade. The same tool supplies its description, input schema, and handler for both SDK and WebMCP calls.
 
@@ -71,8 +75,10 @@ php artisan --version
 Run this command from your Laravel application's root directory:
 
 ```bash
-composer require fosseva/laravel-web-mcp
+composer require fosseva/laravel-web-mcp:0.1.0-alpha.1
 ```
+
+This explicitly opts into the alpha release without lowering your application's global `minimum-stability`. The command requires this tag to be indexed on Packagist. For release changes, see the [changelog](CHANGELOG.md). Report bugs and share feedback through [GitHub issues](https://github.com/fosseva/laravel-web-mcp/issues), including your PHP, Laravel, and Chrome versions.
 
 Composer also installs the Laravel AI SDK (`laravel/ai` 1.1+). Laravel discovers the service provider automatically; publishing configuration is optional. This demo calls a local handler directly, so it needs no AI provider API key.
 
