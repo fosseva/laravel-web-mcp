@@ -33,20 +33,20 @@ The video compares agentic booking with and without WebMCP. Use it to relate the
 - **WebMCP:** the website exposes operations with defined inputs that a supporting agent can discover and call.
 - **How this package fits:** the same idea applies to your Laravel tools. A page exposes `search_products` or another SDK tool through Blade, and browser calls run its existing handler with server-side validation and authorization.
 
-The booking example illustrates the interaction model; it is not a benchmark or a demonstration of this Laravel package. The table below explains the strengths and limitations of both approaches.
+The booking example illustrates the interaction model; it is not a benchmark or a demonstration of this Laravel package.
 
-The comparison below focuses on agents navigating page controls versus calling tools exposed by the website. 🟢 marks a strength; 🟠 marks a limitation.
+Use this table as a reference for how the two approaches interact with a website.
 
 | Aspect | 🖱️ Traditional AI agent navigation | 🛠️ WebMCP tool calls |
 | --- | --- | --- |
-| **Action discovery** | 🟢 Uses existing labels and controls.<br>🟠 Must infer which controls accomplish the task. | 🟢 Explicit names, descriptions, and input schemas describe available operations.<br>🟠 Poor tool descriptions can still lead to incorrect choices. |
-| **Speed and model usage** | 🟢 Needs no tool integration to get started.<br>🟠 Repeated observations, clicks, and page waits can add latency and model work. | 🟢 One call can replace several UI interactions.<br>🟠 Savings depend on handler speed, discovery overhead, and result size. |
-| **Resilience to changes** | 🟢 Can adapt by inspecting the updated interface.<br>🟠 Layout, label, selector, and timing changes can disrupt navigation. | 🟢 Stable tool contracts can survive UI redesigns.<br>🟠 Tool name, schema, or behavior changes can still break workflows. |
-| **Results and errors** | 🟢 Observes what the user actually sees, including visual feedback.<br>🟠 Must extract data and interpret errors from the page. | 🟢 Receives handler results directly; this bridge also returns validation errors.<br>🟠 Output needs careful design, and success does not verify the rendered UI. |
-| **Website integration** | 🟢 Works with existing interfaces without adding agent-specific tools.<br>🟠 Complex workflows may require navigation logic tailored to the site. | 🟢 This package reuses Laravel AI SDK handlers and exposes them through Blade.<br>🟠 Developers must implement and maintain the tool interface. |
-| **Authorization and safety** | 🟢 Uses the logged-in browser session and existing UI workflows.<br>🟠 Visible controls do not guarantee permission; server checks remain essential. | 🟢 This package uses the Laravel session, authorization, CSRF checks, and session-bound exposure tokens.<br>🟠 Handlers still need validation and resource authorization; hints do not enforce safety or approval. |
-| **Task coverage** | 🟢 Can navigate uninstrumented pages and inspect visual details.<br>🟠 Multi-step interactions can be fragile or ambiguous. | 🟢 Suits operations with clear inputs and results, such as product search.<br>🟠 Tool calls cover only exposed operations; visual tasks still need page inspection. |
-| **Compatibility** | 🟢 Does not require the website to implement WebMCP.<br>🟠 Still requires an agent capable of controlling and observing the browser. | 🟢 Supporting agents can discover tools through a standard browser interface.<br>🟠 Requires a compatible browser and agent; the [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd). |
+| **Discovering actions** | Interpret screenshots, the DOM, or accessibility information to identify controls. | Read registered tool names, descriptions, and input schemas. |
+| **Sending input** | Click controls, type into fields, and submit forms. | Call a named tool with structured arguments. |
+| **Receiving results** | Inspect the updated page and interpret its feedback. | Receive the handler's result or error directly. |
+| **Handling changes** | Reinspect the interface when layouts, labels, or controls change. | Follow the tool contract; changes to names, schemas, or behavior may require adaptation. |
+| **Website setup** | Use the website's existing interface. | The website implements tools; this package exposes Laravel AI SDK handlers through Blade. |
+| **Access control** | Use the browser session and the application's server-side permission checks. | This package uses the Laravel session, authorization, CSRF checks, and session-bound exposure tokens. |
+| **Task coverage** | Interact with page controls and inspect visual content. | Execute exposed operations; use page navigation and inspection for other tasks. |
+| **Browser requirements** | An agent capable of observing and controlling the browser. | A browser and agent supporting WebMCP, whose [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd). |
 
 WebMCP complements UI navigation. Expose tools for operations with clear inputs and results, and retain ordinary page controls for users and agents that need them.
 
