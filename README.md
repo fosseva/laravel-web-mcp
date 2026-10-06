@@ -17,16 +17,18 @@ Browser agents commonly interact with websites by inspecting screenshots, the DO
 
 For example, searching for a product through the UI can involve finding the search field, typing a query, submitting the form, waiting for results, and extracting product details. With this package, the page can expose `search_products`, which the agent calls with `{"query": "keyboard"}` to receive the handler's result.
 
-| Aspect | 🟢 Advantages | 🟠 Disadvantages and limitations |
+The comparison below focuses on agents navigating page controls versus calling tools exposed by the website. 🟢 marks a strength; 🟠 marks a limitation.
+
+| Aspect | 🖱️ Traditional AI agent navigation | 🛠️ WebMCP tool calls |
 | --- | --- | --- |
-| **Action discovery** | Named operations and input schemas make actions explicit: `search_products` declares what the agent can call. | You must maintain accurate descriptions and schemas. Agents can still misunderstand intent or supply incorrect arguments. |
-| **Speed and cost** | One tool call can replace several clicks, form interactions, and page observations, potentially reducing latency and model usage. | Savings are workload-dependent. Slow handlers, large results, and extra tool discovery can offset the benefit. |
-| **Reliability** | A tool contract can survive changes to layouts, button labels, and DOM selectors. | Renaming tools or changing their inputs and behavior can break workflows; execution can still fail. |
-| **Results and errors** | Handlers return data directly, including JSON when provided. This bridge returns validation errors agents can use to correct input. | Developers must design useful results. A successful call does not prove the page displayed the expected state. |
-| **Laravel integration** | Reuse AI SDK handlers, dependency injection, and the user's existing Laravel session without duplicating business logic. | The bridge calls handlers directly; SDK agent middleware, conversation state, and invocation events are not applied. |
-| **Access control** | Blade selects page tools; server-side authorization, session-bound tokens, and CSRF checks govern their use. | Exposure is not permission. Handlers still need input validation, tenant filtering, and resource authorization. Hints do not enforce approval. |
-| **Task coverage** | Purpose-built tools work well for operations with clear inputs and results, such as search and record updates. | Only exposed operations are available through tools. Visual inspection and other actions still require UI navigation. |
-| **Compatibility** | Supporting agents can discover tools through a standard browser interface. | A compatible browser and agent are required. The [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd), and support can vary. |
+| **Action discovery** | 🟢 Uses existing labels and controls.<br>🟠 Must infer which controls accomplish the task. | 🟢 Explicit names, descriptions, and input schemas describe available operations.<br>🟠 Poor tool descriptions can still lead to incorrect choices. |
+| **Speed and model usage** | 🟢 Needs no tool integration to get started.<br>🟠 Repeated observations, clicks, and page waits can add latency and model work. | 🟢 One call can replace several UI interactions.<br>🟠 Savings depend on handler speed, discovery overhead, and result size. |
+| **Resilience to changes** | 🟢 Can adapt by inspecting the updated interface.<br>🟠 Layout, label, selector, and timing changes can disrupt navigation. | 🟢 Stable tool contracts can survive UI redesigns.<br>🟠 Tool name, schema, or behavior changes can still break workflows. |
+| **Results and errors** | 🟢 Observes what the user actually sees, including visual feedback.<br>🟠 Must extract data and interpret errors from the page. | 🟢 Receives handler results directly; this bridge also returns validation errors.<br>🟠 Output needs careful design, and success does not verify the rendered UI. |
+| **Website integration** | 🟢 Works with existing interfaces without adding agent-specific tools.<br>🟠 Complex workflows may require navigation logic tailored to the site. | 🟢 This package reuses Laravel AI SDK handlers and exposes them through Blade.<br>🟠 Developers must implement and maintain the tool interface. |
+| **Authorization and safety** | 🟢 Uses the logged-in browser session and existing UI workflows.<br>🟠 Visible controls do not guarantee permission; server checks remain essential. | 🟢 This package uses the Laravel session, authorization, CSRF checks, and session-bound exposure tokens.<br>🟠 Handlers still need validation and resource authorization; hints do not enforce safety or approval. |
+| **Task coverage** | 🟢 Can navigate uninstrumented pages and inspect visual details.<br>🟠 Multi-step interactions can be fragile or ambiguous. | 🟢 Suits operations with clear inputs and results, such as product search.<br>🟠 Tool calls cover only exposed operations; visual tasks still need page inspection. |
+| **Compatibility** | 🟢 Does not require the website to implement WebMCP.<br>🟠 Still requires an agent capable of controlling and observing the browser. | 🟢 Supporting agents can discover tools through a standard browser interface.<br>🟠 Requires a compatible browser and agent; the [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd). |
 
 WebMCP complements UI navigation. Expose tools for operations with clear inputs and results, and retain ordinary page controls for users and agents that need them.
 
