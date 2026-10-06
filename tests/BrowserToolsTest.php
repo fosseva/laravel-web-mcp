@@ -6,10 +6,12 @@ use Fosseva\WebMcp\PageTools;
 use Fosseva\WebMcp\Tests\Fixtures\ApprovalTool;
 use Fosseva\WebMcp\Tests\Fixtures\DefaultTool;
 use Fosseva\WebMcp\Tests\Fixtures\Greet;
+use Fosseva\WebMcp\Tests\Fixtures\NamedGreet;
 use Fosseva\WebMcp\Tests\Fixtures\SdkOnlyTool;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\ViewException;
 
 beforeEach(function () {
     Route::middleware('web')->get('/fixture', function () {
@@ -148,3 +150,36 @@ test('trait defaults deny browser access until authorization is explicitly confi
     $this->getJson('/_webmcp/manifest?'.http_build_query(['tools' => [$token]]))->assertOk()->assertJsonCount(0, 'tools');
     $this->postJson(executionUrl($token), [])->assertForbidden()->assertSessionMissing('default_tool_executed');
 });
+
+test('Blade can expose a discovered tool by its default or custom WebMCP name', function (string $class, string $name) {
+    $this->withSession(['allowed' => true]);
+    Route::middleware('web')->get('/named', function () use ($class, $name) {
+        return Blade::render('<x-webmcp::expose :name="$name" /><x-webmcp::expose :tool="$class" />', compact('name', 'class'));
+    });
+    $html = $this->get('/named')->assertOk()->getContent();
+    preg_match_all('/data-webmcp-tool="([^"]+)"/', $html, $matches);
+    expect(array_unique($matches[1]))->toHaveCount(1);
+    $this->withCookie(config('session.cookie'), session()->getId())->withCredentials();
+    $response = $this->getJson('/_webmcp/manifest?'.http_build_query(['tools' => array_map('html_entity_decode', $matches[1])]))
+        ->assertOk()->assertJsonCount(1, 'tools')->assertJsonPath('tools.0.name', $name);
+    $this->postJson($response->json('tools.0.execution.url'), ['name' => 'Aniket'])
+        ->assertOk()->assertJsonPath('result', 'Hello, Aniket!');
+})->with([
+    [Greet::class, 'greet'],
+    [NamedGreet::class, 'welcome'],
+]);
+
+test('a discovered tool does not expose a tool without a Blade component', function () {
+    $this->withSession(['allowed' => true])->getJson('/_webmcp/manifest')->assertOk()->assertJsonCount(0, 'tools');
+});
+
+test('unknown names and tools without browser opt-in cannot resolve by name', function (string $name) {
+    expect(fn () => app(PageTools::class)->expose($name))->toThrow(InvalidArgumentException::class);
+})->with(['missing_tool', 'sdk_only_tool']);
+
+test('Blade requires exactly one class or name', function (string $template) {
+    expect(fn () => Blade::render($template, ['class' => Greet::class]))->toThrow(ViewException::class, 'Provide exactly one');
+})->with([
+    '<x-webmcp::expose />',
+    '<x-webmcp::expose :tool="$class" name="greet" />',
+]);

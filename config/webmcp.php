@@ -7,4 +7,8 @@ return [
     'middleware' => ['web'],
     // Reload the Blade page after this many minutes to renew its tool exposures.
     'exposure_ttl' => 60,
+    // Scan these PSR-4 locations for classes implementing Tool and WebMcp.
+    'discovery' => [
+        ['path' => app_path('Ai/Tools'), 'namespace' => 'App\\Ai\\Tools'],
+    ],
 ];

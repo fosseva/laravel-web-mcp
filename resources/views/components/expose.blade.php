@@ -1,11 +1,15 @@
-@props(['tool'])
+@props(['tool' => null, 'name' => null])
 
 @php
-    if (! is_string($tool) || $tool === '') {
-        throw new InvalidArgumentException('The webmcp::expose component requires an SDK tool implementing WebMcp.');
+    if (($tool === null) === ($name === null)) {
+        throw new InvalidArgumentException('Provide exactly one tool class or WebMCP name to webmcp::expose.');
+    }
+    $selection = $tool ?? $name;
+    if (! is_string($selection) || $selection === '') {
+        throw new InvalidArgumentException('The webmcp::expose component requires a non-empty tool class or WebMCP name.');
     }
     $token = config('webmcp.enabled', true)
-        ? app(\Fosseva\WebMcp\PageTools::class)->expose($tool)
+        ? app(\Fosseva\WebMcp\PageTools::class)->expose($selection)
         : null;
 @endphp
 

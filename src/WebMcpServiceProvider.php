@@ -2,6 +2,8 @@
 
 namespace Fosseva\WebMcp;
 
+use Fosseva\WebMcp\Console\CacheToolsCommand;
+use Fosseva\WebMcp\Console\ClearToolsCommand;
 use Fosseva\WebMcp\Http\Controllers\ExecuteToolController;
 use Fosseva\WebMcp\Http\Controllers\ManifestController;
 use Fosseva\WebMcp\Http\Controllers\RuntimeController;
@@ -23,6 +25,9 @@ class WebMcpServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__.'/../config/webmcp.php' => config_path('webmcp.php'),
             ], 'webmcp-config');
+
+            $this->commands([CacheToolsCommand::class, ClearToolsCommand::class]);
+            $this->optimizes('webmcp:cache', 'webmcp:clear', 'webmcp');
 
         }
 

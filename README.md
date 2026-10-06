@@ -83,13 +83,169 @@ Override `webMcpName()` to choose a custom name. Names must be unique on the pag
 
 Use `description()` for the tool's description. Use `webMcpAnnotations()` for boolean behavior hints, such as `readOnlyHint`. Annotations do not grant permissions.
 
-## Expose it in Blade
+## Expose tools in Blade
+
+Add an exposure component to the page that needs the tool. The runtime loads once, even when the page exposes several tools.
+
+### Expose a tool by class
+
+Pass the tool class directly. This needs no entry in the package configuration.
 
 ```blade
 <x-webmcp::expose :tool="\App\Ai\Tools\SearchProducts::class" />
 ```
 
-Add this component to the page that needs the tool. It loads the browser runtime once, even when you expose several tools.
+### Expose a tool by its WebMCP name
+
+Tools in `app/Ai/Tools` are discovered automatically when they implement both `Tool` and `WebMcp`. No tool list is needed.
+
+Then use its `webMcpName()` value in Blade. With the default trait, `SearchProducts` has the name `search_products`.
+
+```blade
+<x-webmcp::expose name="search_products" />
+```
+
+Discovery allows name lookup; it does not expose tools automatically. Each tool still needs a Blade component and must pass authorization.
+
+### Use a custom name
+
+Override the method on your tool:
+
+```php
+public function webMcpName(): string
+{
+    return 'product_lookup';
+}
+```
+
+Keep the tool in a discovery directory and use that name:
+
+```blade
+<x-webmcp::expose name="product_lookup" />
+```
+
+Names must be unique among the discovered tool classes. An unknown or duplicate name produces an error when rendering the component.
+
+### Expose several tools
+
+You can mix class-based and named exposure on the same page:
+
+```blade
+<x-webmcp::expose name="search_products" />
+<x-webmcp::expose :tool="\App\Ai\Tools\CreateOrder::class" />
+```
+
+Exposing the same class more than once shares a single exposure token and browser registration. Provide either `tool` or `name` on each component.
+
+### Expose a tool conditionally
+
+Use ordinary Blade conditions to choose which tools a page includes:
+
+```blade
+@can('viewAny', \App\Models\Product::class)
+    <x-webmcp::expose name="search_products" />
+@endcan
+```
+
+`webMcpAuthorize()` still checks permission on the server before executing a call.
+
+### Pass the name from a view variable
+
+Use a bound attribute when the name comes from your controller or component:
+
+```blade
+{{-- $toolName = 'search_products' --}}
+<x-webmcp::expose :name="$toolName" />
+```
+
+## Where to place an exposure
+
+The exposure component works inside Blade files. Place it near the feature the tool supports. The named examples below assume `SearchProducts` is in `app/Ai/Tools`.
+
+### A page view
+
+Expose a tool only on the page that needs it, such as `resources/views/products/index.blade.php`:
+
+```blade
+@extends('layouts.app')
+
+@section('content')
+    <h1>Products</h1>
+    <x-webmcp::expose name="search_products" />
+@endsection
+```
+
+### A shared layout
+
+Add an exposure to `resources/views/layouts/app.blade.php` when every page using that layout needs the tool:
+
+```blade
+<body>
+    @yield('content')
+    <x-webmcp::expose name="search_products" />
+</body>
+```
+
+Every page extending this layout includes the tool. To limit it to product routes, wrap the component in a condition:
+
+```blade
+@if (request()->routeIs('products.*'))
+    <x-webmcp::expose name="search_products" />
+@endif
+```
+
+### A reusable Blade component
+
+Include the exposure in `resources/views/components/product-browser.blade.php`:
+
+```blade
+<section>
+    {{ $slot }}
+    <x-webmcp::expose :tool="\App\Ai\Tools\SearchProducts::class" />
+</section>
+```
+
+Any page rendering this component includes its tool:
+
+```blade
+<x-product-browser>
+    <h2>Browse products</h2>
+</x-product-browser>
+```
+
+Repeated instances share one tool registration and load the runtime once.
+
+### An included partial
+
+Group related exposures in `resources/views/partials/product-tools.blade.php`:
+
+```blade
+<x-webmcp::expose name="search_products" />
+<x-webmcp::expose :tool="\App\Ai\Tools\CreateOrder::class" />
+```
+
+Include the partial on pages that need those tools:
+
+```blade
+@include('partials.product-tools')
+```
+
+### A Livewire view
+
+Place the exposure inside the root element of a Livewire view, such as `resources/views/livewire/product-search.blade.php`:
+
+```blade
+<div>
+    <h2>Product search</h2>
+    <x-webmcp::expose name="search_products" />
+</div>
+```
+
+The component loads the runtime when the view is first rendered with the page. Once loaded, the runtime refreshes registrations after Livewire navigation and DOM updates, removing tools whose exposure markers disappear.
+
+In every location, Blade controls which tools are included on the page. `webMcpAuthorize()` controls whether the current user can list or execute them.
+
+## How tool calls work
 
 Each tool must implement both contracts and be rendered by Blade to receive an exposure token.
 
@@ -117,12 +273,46 @@ return [
     'path' => '_webmcp',
     'middleware' => ['web'],
     'exposure_ttl' => 60,
+    'discovery' => [
+        ['path' => app_path('Ai/Tools'), 'namespace' => 'App\\Ai\\Tools'],
+    ],
 ];
 ```
 
 Keep the `web` middleware for sessions and CSRF protection. Add `auth` and rate limiting as needed. Check tool-specific permissions in `webMcpAuthorize()` and the handler.
 
 Clear Laravel's route cache after changing route configuration. Render tool exposures for each request; their tokens must not be shared through cached Blade output.
+
+## Discovery and caching
+
+The default discovery directory is `app/Ai/Tools`. Discovery includes concrete classes implementing both `Laravel\Ai\Contracts\Tool` and `Fosseva\WebMcp\Contracts\WebMcp`, including classes in nested directories.
+
+For another PSR-4 directory, add its path and namespace to the `discovery` configuration. Class-based exposure works outside discovery directories too.
+
+```php
+'discovery' => [
+    ['path' => app_path('Ai/Tools'), 'namespace' => 'App\\Ai\\Tools'],
+    ['path' => app_path('Domain/Billing/Tools'), 'namespace' => 'App\\Domain\\Billing\\Tools'],
+],
+```
+
+Without a cache, the package scans these directories when resolving a name. For production, Laravel's optimization commands manage the discovery cache automatically:
+
+```bash
+php artisan optimize
+php artisan optimize:clear
+```
+
+You can also manage just the WebMCP discovery cache:
+
+```bash
+php artisan webmcp:cache
+php artisan webmcp:clear
+```
+
+The cache lives at `bootstrap/cache/webmcp-tools.php` and stores only class names. Creating it does not instantiate tools. Tool names, schemas, and authorization are evaluated for each request.
+
+Rebuild the cache after adding, moving, or removing tools, or changing discovery directories. Clearing it restores directory scanning. Discovery does not register tools in the browser; Blade exposure and authorization are still required.
 
 ## Routes and errors
 
