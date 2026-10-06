@@ -53,6 +53,18 @@ WebMCP complements UI navigation. Expose tools for operations with clear inputs 
 > [!NOTE]
 > WebMCP provides an explicit interface for agents; it does not guarantee faster execution, correct decisions, or safe side effects.
 
+### Example applications and tools
+
+These are tools you could implement in your application, rather than tools bundled with this package.
+
+| Domain | Example tools | What an agent could help with |
+| --- | --- | --- |
+| **E-commerce** | `search_products`, `check_stock`, `add_to_cart` | Find matching products, check availability, and add a selected item to the user's cart. |
+| **Appointment scheduling** | `find_available_slots`, `get_booking_details`, `reschedule_appointment` | Find a suitable time, inspect the user's booking, and request a schedule change. |
+| **Customer support** | `search_help_articles`, `get_ticket_status`, `create_support_ticket` | Find relevant guidance, check an authorized ticket, and submit a new support request. |
+
+Expose tools on the relevant pages and enforce user and resource permissions in each handler. Tools that change carts, bookings, or tickets also need input validation and any confirmation your application requires.
+
 ## Requirements
 
 Start in an existing Laravel application's root directory, where `artisan` and `composer.json` live. This package is a Laravel library, not a standalone application.
@@ -203,6 +215,26 @@ The result should be:
 Hello, Aniket!
 ```
 
+#### Example: ChatGPT discovers and calls the tool
+
+![ChatGPT beside the WebMCP greeting demo, with greet_visitor listed in Site tools, its input schema visible, and a response reporting Hello, Aniket!](docs/images/chatgpt-webmcp-greeting-demo.png)
+
+This screenshot shows the greeting demo open beside a ChatGPT conversation. The **Site tools** panel lists `greet_visitor`, its description, and its input schema: a required string `name` with a maximum length of 80 characters. The conversation reports calling the tool with `name` set to `Aniket` and receiving `Hello, Aniket!`.
+
+It connects the steps above to an agent interaction: the page exposes the tool, the client discovers its metadata, and the agent calls it to answer the user's request. This example uses a client with site-tool support; availability depends on your browser and agent environment.
+
+#### Example: a successful call in Chrome DevTools
+
+![Chrome DevTools Application panel showing the greet_visitor tool, its Run Tool button, and the completed result Hello, Aniket!](docs/images/chrome-webmcp-greeting-demo.png)
+
+This snapshot shows the same demo in Chrome DevTools under **Application → WebMCP**, on a local development URL. If your Chrome build includes this panel, you can test the tool here as well as in the inspector extension:
+
+1. **Cyan oval:** select `greet_visitor` under **Available Tools**. Its details show the description and read-only hint.
+2. **Green oval:** set the `name` parameter to `Aniket` under **Run Tool**, then click **Run Tool**.
+3. **Red rectangle:** select the completed call in the upper list and open **Output** to see `Hello, Aniket!`.
+
+The **Completed** status confirms the call returned successfully. DevTools panel availability and layout may vary by Chrome version; the inspector instructions below provide another way to inspect and execute tools.
+
 Try `{"name": ""}` next. The result should contain a validation error with status `422`. This shows the input schema describes the tool, while the handler also validates inputs on the server.
 
 You now have the complete flow: **Blade page → registered browser tool → Laravel authorization and validation → SDK handler → result**. For an application example with a product model and user permissions, continue to [Opt in an existing SDK tool](#opt-in-an-existing-sdk-tool).
@@ -224,6 +256,19 @@ The current [Model Context Tool Inspector listing](https://chromewebstore.google
 ### 2. Install the inspector
 
 Install [WebMCP – Model Context Tool Inspector](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd), then open it from Chrome's extensions menu on the demo page. Use its tool list, input schema, manual execution controls, and results to inspect `greet_visitor`. Manual calls need no model API key.
+
+#### Example: execute the greeting in the inspector
+
+![WebMCP greeting page beside the Model Context Tool Inspector, showing greet_visitor metadata, input arguments, the Execute Tool button, and Hello, Aniket Magadum! as the result](docs/images/webmcp-inspector-greeting-demo.png)
+
+The page on the left exposes the tool through Blade. The inspector on the right shows its registration and a successful manual call:
+
+1. **WebMCP Tools:** inspect the description, `inputSchema`, `readOnlyHint` annotation, and `greet_visitor` name.
+2. **Tool:** select `greet_visitor` from the dropdown.
+3. **Input Arguments:** enter `{"name": "Aniket Magadum"}`.
+4. **Execute Tool:** click the button. The result beneath it should read `Hello, Aniket Magadum!`.
+
+The **User Prompt** and **Set Gemini API key** controls belong to the optional agent mode. They are not needed for the manual call shown here. The greeting is returned in the inspector; this handler does not update the page's visible content.
 
 > [!WARNING]
 > The inspector's listing warns that it does not implement production security boundaries. Use it on trusted development pages.
