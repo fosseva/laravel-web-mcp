@@ -1,5 +1,10 @@
 # Laravel WebMCP
 
+[![CI](https://github.com/fosseva/laravel-web-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/fosseva/laravel-web-mcp/actions/workflows/ci.yml)
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)](composer.json)
+[![Laravel](https://img.shields.io/badge/Laravel-12.62%2B%20%7C%2013.15%2B-FF2D20?logo=laravel&logoColor=white)](composer.json)
+[![License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
+
 Make your Laravel AI SDK tools available to browser agents through Blade. The same tool supplies its description, input schema, and handler for both SDK and WebMCP calls.
 
 You choose which tools each page exposes. Browser calls use Laravel sessions, authorization, and CSRF protection.
@@ -12,16 +17,21 @@ Browser agents commonly interact with websites by inspecting screenshots, the DO
 
 For example, searching for a product through the UI can involve finding the search field, typing a query, submitting the form, waiting for results, and extracting product details. With this package, the page can expose `search_products`, which the agent calls with `{"query": "keyboard"}` to receive the handler's result.
 
-| Aspect | Advantage of WebMCP | Disadvantage or limitation |
+| Aspect | 🟢 Advantages | 🟠 Disadvantages and limitations |
 | --- | --- | --- |
-| Discovering actions | Explicit names, descriptions, and input schemas reduce the need to infer actions from page controls. | Developers must define and maintain clear tool contracts; agents can still choose the wrong tool or arguments. |
-| Executing a task | Direct calls can reduce clicks, page waits, latency, and model work. | Performance gains depend on the implementation; unexposed actions and visual tasks still need UI navigation. |
-| UI changes | Tools can remain stable when layouts, labels, or selectors change. | Changes to tool names, schemas, or behavior can still break agent workflows. |
-| Reading results | Agents receive handler results directly, including JSON when provided. | Useful output must be designed by the developer; tool calls do not automatically verify the rendered UI. |
-| Laravel integration | This package reuses AI SDK handlers and Laravel sessions, authorization, and CSRF protection. | Handlers must validate inputs and enforce permissions; annotations do not enforce safety or approval. |
-| Compatibility | A standard browser interface lets supporting agents discover page tools. | A compatible browser and agent are required, and the [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd). |
+| **Action discovery** | Named operations and input schemas make actions explicit: `search_products` declares what the agent can call. | You must maintain accurate descriptions and schemas. Agents can still misunderstand intent or supply incorrect arguments. |
+| **Speed and cost** | One tool call can replace several clicks, form interactions, and page observations, potentially reducing latency and model usage. | Savings are workload-dependent. Slow handlers, large results, and extra tool discovery can offset the benefit. |
+| **Reliability** | A tool contract can survive changes to layouts, button labels, and DOM selectors. | Renaming tools or changing their inputs and behavior can break workflows; execution can still fail. |
+| **Results and errors** | Handlers return data directly, including JSON when provided. This bridge returns validation errors agents can use to correct input. | Developers must design useful results. A successful call does not prove the page displayed the expected state. |
+| **Laravel integration** | Reuse AI SDK handlers, dependency injection, and the user's existing Laravel session without duplicating business logic. | The bridge calls handlers directly; SDK agent middleware, conversation state, and invocation events are not applied. |
+| **Access control** | Blade selects page tools; server-side authorization, session-bound tokens, and CSRF checks govern their use. | Exposure is not permission. Handlers still need input validation, tenant filtering, and resource authorization. Hints do not enforce approval. |
+| **Task coverage** | Purpose-built tools work well for operations with clear inputs and results, such as search and record updates. | Only exposed operations are available through tools. Visual inspection and other actions still require UI navigation. |
+| **Compatibility** | Supporting agents can discover tools through a standard browser interface. | A compatible browser and agent are required. The [specification is still a draft](https://webmachinelearning.github.io/webmcp/#sotd), and support can vary. |
 
 WebMCP complements UI navigation. Expose tools for operations with clear inputs and results, and retain ordinary page controls for users and agents that need them.
+
+> [!NOTE]
+> WebMCP provides an explicit interface for agents; it does not guarantee faster execution, correct decisions, or safe side effects.
 
 Requires PHP 8.3+, Laravel 12.62+ or 13.15+, and `laravel/ai` 1.1+.
 
@@ -465,9 +475,10 @@ Provider-hosted tools and remote MCP tools are outside this package's scope.
 
 ```bash
 composer install
-composer test
-node --test tests/runtime.test.cjs
+composer ci:check
 ```
+
+The [CI workflow](.github/workflows/ci.yml) runs on pushes, pull requests, and manual dispatches. It checks PHP 8.3–8.5 against Laravel 12 and 13 using the matching Testbench version. Each job validates Composer metadata and runs Pint, PHPStan, Pest, and the Node.js runtime tests through `composer ci:check`.
 
 PHP tests cover SDK execution, validation, authorization, session tokens, approval requirements, and manifest caching.
 
