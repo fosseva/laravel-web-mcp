@@ -247,6 +247,41 @@ In every location, Blade controls which tools are included on the page. `webMcpA
 
 ## How tool calls work
 
+```mermaid
+sequenceDiagram
+    actor Agent as Browser agent
+    participant Browser as Browser runtime
+    participant Blade as Laravel Blade
+    participant Laravel as Laravel endpoints
+    participant Tool as SDK tool
+
+    Browser->>Blade: Request the page
+    Note over Blade: Resolve selected classes or discovered names<br/>Create session-bound exposure tokens
+    Blade-->>Browser: Page, exposure tokens, and runtime
+
+    Browser->>Laravel: Request the selected tool definitions
+    Note over Laravel: Validate exposure tokens
+    Laravel->>Tool: webMcpAuthorize(request)
+    Tool-->>Laravel: Permission result
+    Note over Laravel: Include only authorized tools
+    Laravel-->>Browser: SDK metadata and CSRF token
+    Browser->>Browser: Register tools with native WebMCP
+
+    Agent->>Browser: Call a tool with arguments
+    Browser->>Laravel: POST arguments with exposure and CSRF tokens
+    Note over Laravel: Verify CSRF, session binding, and expiry
+    Laravel->>Tool: webMcpAuthorize(request)
+    Tool-->>Laravel: Permission result
+    Note over Laravel: Continue only if allowed<br/>Reject calls requiring SDK approval
+    Laravel->>Tool: handle(SDK ToolRequest)
+    Note over Tool: Validate arguments before side effects
+    Tool-->>Laravel: Result or validation error
+    Laravel-->>Browser: Result or HTTP error
+    Browser-->>Agent: Result text or structured error text
+```
+
+The diagram shows a successful call. Failed token, authorization, or approval checks return an error before the handler runs.
+
 Each tool must implement both contracts and be rendered by Blade to receive an exposure token.
 
 Blade creates an encrypted token for each selected tool. The token belongs to the current session and expires after 60 minutes by default.
