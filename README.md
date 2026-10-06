@@ -17,6 +17,20 @@ Browser agents commonly interact with websites by inspecting screenshots, the DO
 
 For example, searching for a product through the UI can involve finding the search field, typing a query, submitting the form, waiting for results, and extracting product details. With this package, the page can expose `search_products`, which the agent calls with `{"query": "keyboard"}` to receive the handler's result.
 
+### 🎬 Watch: agentic booking with and without WebMCP
+
+[![Watch Agentic booking with and without WebMCP on YouTube](https://i.ytimg.com/vi/CD67L_SIMDk/hqdefault.jpg)](https://www.youtube.com/watch?v=CD67L_SIMDk)
+
+**[▶ Watch the booking comparison](https://www.youtube.com/watch?v=CD67L_SIMDk)** by Alexandra Klepper. Click the thumbnail to open the video; GitHub READMEs do not support embedded iframe players.
+
+The video compares agentic booking with and without WebMCP. Use it to relate the two approaches to a familiar task: an agent completing a booking on a website.
+
+- **Traditional navigation:** the agent interprets page controls and coordinates clicks and form input to carry out the user's request.
+- **WebMCP:** the website exposes operations with defined inputs that a supporting agent can discover and call.
+- **How this package fits:** the same idea applies to your Laravel tools. A page exposes `search_products` or another SDK tool through Blade, and browser calls run its existing handler with server-side validation and authorization.
+
+The booking example illustrates the interaction model; it is not a benchmark or a demonstration of this Laravel package. The table below explains the strengths and limitations of both approaches.
+
 The comparison below focuses on agents navigating page controls versus calling tools exposed by the website. 🟢 marks a strength; 🟠 marks a limitation.
 
 | Aspect | 🖱️ Traditional AI agent navigation | 🛠️ WebMCP tool calls |
@@ -35,15 +49,207 @@ WebMCP complements UI navigation. Expose tools for operations with clear inputs 
 > [!NOTE]
 > WebMCP provides an explicit interface for agents; it does not guarantee faster execution, correct decisions, or safe side effects.
 
-Requires PHP 8.3+, Laravel 12.62+ or 13.15+, and `laravel/ai` 1.1+.
+## Requirements
 
-## Install
+Start in an existing Laravel application's root directory, where `artisan` and `composer.json` live. This package is a Laravel library, not a standalone application.
+
+You need:
+
+- PHP 8.3 or newer and Composer.
+- Laravel 12.62+ within Laravel 12, or Laravel 13.15+ within Laravel 13.
+- A browser with WebMCP support for the browser testing steps below.
+
+Check your application versions:
+
+```bash
+php -v
+php artisan --version
+```
+
+## Installation
+
+Run this command from your Laravel application's root directory:
 
 ```bash
 composer require fosseva/laravel-web-mcp
 ```
 
-The Laravel AI SDK is installed as a dependency. Use its `php artisan make:tool` command to create tools.
+Composer also installs the Laravel AI SDK (`laravel/ai` 1.1+). Laravel discovers the service provider automatically; publishing configuration is optional. This demo calls a local handler directly, so it needs no AI provider API key.
+
+## Usage: run your first tool
+
+This greeting demo needs no database or login system. Complete the four steps below, then use the Chrome inspector to test the result.
+
+### 1. Create a tool
+
+```bash
+php artisan make:tool GreetVisitor
+```
+
+Replace the generated `app/Ai/Tools/GreetVisitor.php` with this complete example, including the opening `<?php`:
+
+```php
+<?php
+
+namespace App\Ai\Tools;
+
+use Fosseva\WebMcp\Concerns\ProvidesWebMcpDefaults;
+use Fosseva\WebMcp\Contracts\WebMcp;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
+use Illuminate\Http\Request;
+use Laravel\Ai\Contracts\Tool;
+use Laravel\Ai\Tools\Request as ToolRequest;
+
+class GreetVisitor implements Tool, WebMcp
+{
+    use ProvidesWebMcpDefaults;
+
+    public function description(): string
+    {
+        return 'Return a greeting for the supplied visitor name.';
+    }
+
+    public function schema(JsonSchema $schema): array
+    {
+        return ['name' => $schema->string()->max(80)->required()];
+    }
+
+    public function webMcpAuthorize(Request $request): bool
+    {
+        // Allow this harmless demo only in the local development environment.
+        return app()->environment('local');
+    }
+
+    public function webMcpAnnotations(): array
+    {
+        return ['readOnlyHint' => true];
+    }
+
+    public function handle(ToolRequest $request): string
+    {
+        $input = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+        ]);
+
+        return 'Hello, '.$input['name'].'!';
+    }
+}
+```
+
+Both interfaces are required: `Tool` supplies the description, schema, and handler; `WebMcp` supplies browser exposure metadata and authorization. The trait names this tool `greet_visitor` automatically. Its default authorization denies access, so the example explicitly allows local use.
+
+For real application tools, replace the demo authorization with your user's permissions and enforce resource access in the handler. Keep `APP_ENV=production` on production deployments.
+
+### 2. Add a Blade page
+
+Create `resources/views/webmcp-demo.blade.php`:
+
+```blade
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>WebMCP greeting demo</title>
+</head>
+<body>
+    <h1>WebMCP greeting demo</h1>
+    <p>Use the WebMCP inspector to call greet_visitor.</p>
+
+    <x-webmcp::expose :tool="\App\Ai\Tools\GreetVisitor::class" />
+</body>
+</html>
+```
+
+The component registers a tool; it does not add a visible chat widget or button. It loads the package's browser runtime automatically, so no npm build or manual JavaScript include is required.
+
+### 3. Add a route and start Laravel
+
+Add this route to `routes/web.php`, which uses Laravel's session and CSRF middleware:
+
+```php
+\Illuminate\Support\Facades\Route::get('/webmcp-demo', function () {
+    abort_unless(app()->environment('local'), 404);
+
+    return view('webmcp-demo');
+});
+```
+
+In your development `.env`, ensure `APP_ENV=local`. Use your application's existing session configuration. Then run:
+
+```bash
+php artisan optimize:clear
+php artisan serve
+```
+
+Open `http://localhost:8000/webmcp-demo` in Chrome. Keep the terminal running. If you already use Herd, Valet, or another server, open `/webmcp-demo` on its HTTPS development URL instead.
+
+### 4. Call the tool
+
+Follow [Enable WebMCP in Chrome](#enable-webmcp-in-chrome) below, then reopen the demo page. In the inspector, select `greet_visitor` and use its manual execution controls with these arguments:
+
+```json
+{"name": "Aniket"}
+```
+
+The result should be:
+
+```text
+Hello, Aniket!
+```
+
+Try `{"name": ""}` next. The result should contain a validation error with status `422`. This shows the input schema describes the tool, while the handler also validates inputs on the server.
+
+You now have the complete flow: **Blade page → registered browser tool → Laravel authorization and validation → SDK handler → result**. For an application example with a product model and user permissions, continue to [Opt in an existing SDK tool](#opt-in-an-existing-sdk-tool).
+
+## Enable WebMCP in Chrome
+
+WebMCP is the browser API used by this package. A remote MCP server or Chrome DevTools MCP connection is a separate integration; neither is required for this demo.
+
+### 1. Enable the browser API
+
+Chrome's [local WebMCP instructions](https://developer.chrome.com/docs/ai/webmcp/#local-webmcp) currently use this flag:
+
+1. Open `chrome://flags/#enable-webmcp-testing` in Chrome's address bar.
+2. Set **WebMCP for testing** to **Enabled**.
+3. Click **Relaunch** and reopen the demo page.
+
+The current [Model Context Tool Inspector listing](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd) requires Chrome **150.0.7861.0 or newer**. Check `chrome://version`; if the flag is missing, update Chrome or use a current Chrome Canary build. Flags and API availability can change.
+
+### 2. Install the inspector
+
+Install [WebMCP – Model Context Tool Inspector](https://chromewebstore.google.com/detail/webmcp-model-context-tool/gbpdfapgefenggkahomfgkhfehlcenpd), then open it from Chrome's extensions menu on the demo page. Use its tool list, input schema, manual execution controls, and results to inspect `greet_visitor`. Manual calls need no model API key.
+
+> [!WARNING]
+> The inspector's listing warns that it does not implement production security boundaries. Use it on trusted development pages.
+
+### 3. Check browser support
+
+On the demo page, open Chrome DevTools → **Console** and run:
+
+```js
+const context = document.modelContext || navigator.modelContext;
+Boolean(context && typeof context.registerTool === 'function');
+```
+
+Expect `true`. This checks API availability, not whether a tool was registered. Use the inspector to verify registration and execute the greeting.
+
+### 4. Understand how an agent uses it
+
+The inspector can also test natural-language tool calls using its agent mode. Configure the model credentials it requests, then try: **“Greet a visitor named Aniket using the available tool.”** Inspect the selected tool, arguments, and returned greeting. This optional model setup is separate from Laravel's handler execution. See [Chrome's inspector guide](https://developer.chrome.com/docs/ai/webmcp/#imitate-agent-chat-with-the-inspector-extension).
+
+Enabling the flag alone does not create an AI assistant. An agent or inspector must consume the registered tools.
+
+### Troubleshooting your first call
+
+| Symptom | What to check |
+| --- | --- |
+| Demo page returns 404 | Confirm the route exists and `APP_ENV=local`; run `php artisan optimize:clear`. |
+| Browser support check returns `false` | Enable the flag, relaunch Chrome, and use HTTPS or localhost. |
+| Inspector shows no tools | Open the Blade demo page, reload it, and check DevTools for errors. Confirm `WEBMCP_ENABLED` is not `false` and `webMcpAuthorize()` allows the request. |
+| Manifest or execution returns 401/403 | Check login, route middleware, and tool authorization. The demo only allows the local environment. |
+| Call returns 419 | Check session cookies and session storage; keep the `web` middleware and reload the page to renew CSRF and exposure tokens. |
+| Call returns 422 | Supply a non-empty `name` of at most 80 characters. Inspect the returned validation fields. |
+| A previously working tool stops working | Reload the page after exposure expiry or a session change. Check any changed permissions. |
 
 ## Opt in an existing SDK tool
 
@@ -62,6 +268,8 @@ Use the optional `ProvidesWebMcpDefaults` trait to supply these defaults:
 Override `webMcpAuthorize()` with your application's authorization policy to allow access. Override the name or annotations only when you need different values.
 
 ```php
+<?php
+
 namespace App\Ai\Tools;
 
 use Fosseva\WebMcp\Concerns\ProvidesWebMcpDefaults;
